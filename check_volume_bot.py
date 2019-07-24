@@ -1,9 +1,6 @@
 # required python3 modules: telegram, python-binance, python-telegram-bot
 # binance secret api key, api key, telegram bot token and telegram chat id are required.
-# This script is used to check volume of coins in Binance. These coins' units are BTC and USDT.
-# Volumes are checked according to last 12 candles that are 15 min and 30 min candles.
-# If a significant increase is detected a coin, telegram bot send a message to chat.
-
+# credentials.txt file has these 4 value.
 import telegram
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
@@ -14,27 +11,41 @@ import re
 import os
 import threading
 
-api_key = 'BINANCE_API_KEY'
-api_secret = 'BINANCE_SECRET_KEY'
+credentials = []
+with open ("/home/baler/Desktop/algo_bot/credentials.txt", "r") as file:
+	while True:
+		line = file.readline()
+		if not line:
+			break
+		result = [x.strip() for x in line.split('=')]
+		if len(result) == 2:
+			credentials.append(result[1])
+
+api_key = credentials[0]
+api_secret = credentials[1]
 client = Client(api_key, api_secret)
 candle_4hours = Client.KLINE_INTERVAL_4HOUR
 candle_30min = Client.KLINE_INTERVAL_30MINUTE
 candle_15min = Client.KLINE_INTERVAL_15MINUTE
+limit = 400
+coinDict = {}
 
-bot = telegram.Bot(token='TELEGRAM_BOT_TOKEN')
-chatID = 'TELEGRAM_CHAT_ID'
+bot = telegram.Bot(token=credentials[2])
+chatID = credentials[3]
 
-# check depencies of coins that BTC or USDT
+#check depencies of coins that BTC or USDT
 def isFinishWithBtcOrUsdt(s):
 	x = len(s)
 	if s[x-1] == 'C' and s[x-2] == 'T' and s[x-3] == 'B':
 		return True
 	elif s[x-1] == 'T' and s[x-2] == 'D' and s[x-3] == 'S' and s[x-4] == 'U':
 		return True
+	#elif s[x-1] == 'H' and s[x-2] == 'T' and s[x-3] == 'E':
+	#	return True
 	else:
 		return False
 
-# get coins which depend on BTC or Tether
+#get coins which depend on BTC or Tether
 def getTradeList():
 	binanceList = client.get_all_tickers()
 	tradeList = []
@@ -45,8 +56,17 @@ def getTradeList():
 	return tradeList
 
 def main():
+	threading.Timer(200, main).start()
+	global coinDict
+	'''file = open('/home/balerilhan/Desktop/coinList.txt', 'r')
+	tradeList = []
+	while True:
+		line = file.readline().strip()
+		if line == '':
+			break
+		tradeList.append(str(line))'''
 	tradeList = getTradeList()
-	#print(tradeList)
+	print(tradeList)
 	if "SUBBTC" in tradeList:
 		tradeList.remove("SUBBTC")
 
@@ -78,6 +98,9 @@ def main():
 		prev_vol_15m = float(candles15m[11][7])
 		prev_vol_30m = float(candles30m[11][7])
 
+		print(tradeList[i], candles15m[11][1], candles15m[11][4], candles15m[11][5], candles15m[11][7], candles15m[11][9], candles15m[11][10])
+
+		#bot.send_message(chat_id=chatID, text='Volume of ' + tradeList[i] + str(last_vol_15m) + ' BTC')
 		unit = "BTC"
 		vol_limit = 1
 		if 'USDT' in tradeList[i]:
@@ -90,5 +113,10 @@ def main():
 			printStr = 'Volume of ' + tradeList[i] + ' is increasing in 30mins candles. Volume = ' + str(last_vol_30m) + " " + unit
 			bot.send_message(chat_id=chatID, text=printStr)
 
+
+	#threading.Timer(300, main).start()
+
+
 if __name__ == '__main__':
+    #main()
     main()
